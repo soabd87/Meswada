@@ -1,0 +1,110 @@
+{% extends "layout.html" %}
+{% block title %}الأرشيف - My Editor{% endblock %}
+
+{% block content %}
+    <h1 style="margin-bottom: 25px;">الأرشيف</h1>
+    
+    <div class="card">
+        <form action="/archive" method="GET" class="filter-form">
+            <div class="form-group mb-0">
+                <label class="form-label">الموقع</label>
+                <select name="site_id" id="siteSelector" class="form-select" onchange="loadCategories()">
+                    <option value="">الكل</option>
+                    {% for site in sites %}
+                    <option value="{{ site.id }}" {% if current_site == site.id|string %}selected{% endif %}>{{ site.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group mb-0">
+                <label class="form-label">القسم</label>
+                <select name="category_id" id="catSelector" class="form-select">
+                    <option value="">اختر موقعاً</option>
+                </select>
+            </div>
+            <div class="form-group mb-0">
+                <label class="form-label">الترتيب</label>
+                <select name="sort_by" class="form-select">
+                    <option value="created_desc" {% if current_sort == 'created_desc' %}selected{% endif %}>الأحدث</option>
+                    <option value="created_asc" {% if current_sort == 'created_asc' %}selected{% endif %}>الأقدم</option>
+                    <option value="updated_desc" {% if current_sort == 'updated_desc' %}selected{% endif %}>آخر تعديل</option>
+                </select>
+            </div>
+            <div class="form-group mb-0">
+                <button type="submit" class="btn btn-black" style="width: 100%; height: 42px;">تطبيق الفلتر</button>
+            </div>
+        </form>
+    </div>
+
+    <div style="display: flex; justify-content: flex-end; margin-bottom: 15px;">
+        <button type="submit" form="bulkDeleteArchiveForm" class="btn btn-danger" onclick="return confirm('هل أنت متأكد من حذف جميع المقالات المحددة نهائياً؟');">حذف المحدد</button>
+    </div>
+
+    <form id="bulkDeleteArchiveForm" action="/bulk_delete_posts" method="POST">
+        <div class="table-wrapper">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px; text-align: center;">
+                            <input type="checkbox" id="selectAllArchive" style="cursor: pointer;">
+                        </th>
+                        <th>العنوان</th>
+                        <th>التصنيف</th>
+                        <th>التاريخ</th>
+                        <th style="width: 150px; text-align: center;">إجراء</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for post in posts %}
+                    <tr>
+                        <td style="text-align: center;">
+                            <input type="checkbox" class="post-checkbox" name="post_ids" value="{{ post.id }}" style="cursor: pointer;">
+                        </td>
+                        <td>{{ post.title }}</td>
+                        <td>
+                            <span class="badge">{{ post.cat_name }}</span><br>
+                            <span style="font-size: 12px; color: var(--color-text-muted);">{{ post.site_name }}</span>
+                        </td>
+                        <td style="font-size: 12px; color: var(--color-text-muted);">
+                            إضافة: {{ post.created_at[:10] }}<br>تعديل: {{ post.updated_at[:10] }}
+                        </td>
+                        <td style="text-align: center;">
+                            <a href="/editor/{{ post.id }}" class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px;">تعديل</a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" style="text-align: center;">لا توجد مقالات</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function loadCategories(preselectCat = null) {
+        const siteId = document.getElementById('siteSelector').value;
+        const catSelect = document.getElementById('catSelector');
+        if (!siteId) { catSelect.innerHTML = '<option value="">الكل</option>'; return; }
+        fetch(`/api/categories/${siteId}`)
+            .then(res => res.json())
+            .then(data => {
+                catSelect.innerHTML = '<option value="">الكل</option>';
+                data.forEach(cat => {
+                    let isSelected = (preselectCat && cat.id == preselectCat) ? 'selected' : '';
+                    catSelect.innerHTML += `<option value="${cat.id}" ${isSelected}>${cat.name}</option>`;
+                });
+            });
+    }
+    
+    document.addEventListener("DOMContentLoaded", () => {
+        if ("{{ current_site }}") loadCategories("{{ current_cat }}");
+        
+        // سكريبت التحديد للكل في الأرشيف
+        document.getElementById('selectAllArchive')?.addEventListener('change', function(e) {
+            const checkboxes = document.querySelectorAll('#bulkDeleteArchiveForm .post-checkbox');
+            checkboxes.forEach(cb => cb.checked = e.target.checked);
+        });
+    });
+</script>
+{% endblock %}

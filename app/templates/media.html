@@ -1,0 +1,44 @@
+{% extends "layout.html" %}
+{% block title %}مكتبة الصور - My Editor{% endblock %}
+
+{% block content %}
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+        <h1>مكتبة الصور</h1>
+        <span class="badge">الإجمالي: {{ images|length }}</span>
+    </div>
+
+    <div class="media-grid">
+        {% for img in images %}
+        <div class="media-card">
+            <div class="media-img-wrapper">
+                <img src="{{ url_for('static', filename='uploads/' + img.path) }}" loading="lazy" alt="{{ img.name }}">
+            </div>
+            <div class="media-info">
+                <div class="media-name" title="{{ img.name }}">{{ img.name }}</div>
+                <span class="badge" style="margin-bottom: 10px; display: block;">{{ img.folder }}</span>
+                <div class="media-actions">
+                    <button class="btn btn-secondary" onclick="copyLink('{{ img.path }}')">نسخ</button>
+                    <form action="/delete_media/{{ img.path }}" method="POST" onsubmit="return confirm('حذف الصورة؟');" style="flex: 1; margin:0;">
+                        <button type="submit" class="btn btn-danger" style="width: 100%;">حذف</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div style="grid-column: 1 / -1; text-align: center; padding: 50px; border: 1px dashed var(--color-border); color: var(--color-text-muted);">
+            لا توجد صور
+        </div>
+        {% endfor %}
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const LOCAL_ABSOLUTE_PATH = "/home/abd/01_Projects/my-editor/app/static/uploads/"; 
+    function copyLink(filename) {
+        navigator.clipboard.writeText(LOCAL_ABSOLUTE_PATH + filename).then(() => {
+            alert('تم نسخ المسار');
+        });
+    }
+</script>
+{% endblock %}

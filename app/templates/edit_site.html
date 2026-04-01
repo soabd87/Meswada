@@ -1,0 +1,18 @@
+{% extends "layout.html" %}
+{% block title %}تعديل الموقع - My Editor{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 500px; margin: 40px auto;">
+    <h2 class="card-title">تعديل اسم الموقع</h2>
+    <form action="/edit_site/{{ site.id }}" method="POST">
+        <div class="form-group">
+            <label class="form-label">الاسم</label>
+            <input type="text" class="form-control" name="name" value="{{ site.name }}" required>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button type="submit" class="btn btn-primary" style="flex: 1;">حفظ</button>
+            <a href="/" class="btn btn-secondary" style="flex: 1; text-align: center;">إلغاء</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

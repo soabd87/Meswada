@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+
+# Database
+database.db
+update_db.py
+Meswada.md
+
+# Uploads (Local Images)
+app/static/uploads/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+
+
+
+# Temporary files and text editor backups
+*~
+.*.sw[a-z]
+*.swp
+*.swo
+#*#
+.Trash-*
+.fuse_hidden*
+.directory
+
+# Secrets and environment variables
+.env
+*.pem
+*.key
+secrets.json
+
+# Log files
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# IDEs and Text Editors
+.vscode/
+.idea/
+*.suo
+*.ntvs*

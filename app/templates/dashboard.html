@@ -1,0 +1,123 @@
+{% extends "layout.html" %}
+{% block title %}لوحة التحكم - My Editor{% endblock %}
+
+{% block content %}
+    <h1 style="margin-bottom: 25px;">لوحة التحكم</h1>
+
+    <div class="dashboard-grid">
+        <div class="card">
+            <h2 class="card-title">إضافة موقع جديد</h2>
+            <form action="/add_site" method="POST" style="display: flex; gap: 10px;">
+                <input type="text" class="form-control" name="name" placeholder="اسم الموقع" required>
+                <button type="submit" class="btn btn-primary">حفظ</button>
+            </form>
+            
+            <div style="margin-top: 20px;">
+                <p class="form-label" style="color: var(--color-text-muted);">المواقع الحالية:</p>
+                <div class="tags-list">
+                    {% for site in sites %}
+                    <div class="tag-item">
+                        <span class="tag-name">{{ site.name }}</span>
+                        <div class="tag-actions">
+                            <a href="/edit_site/{{ site.id }}" class="tag-btn edit-btn">تعديل</a>
+                            <form action="/delete_site/{{ site.id }}" method="POST" onsubmit="return confirm('حذف نهائي؟');" class="tag-form">
+                                <button type="submit" class="tag-btn delete-btn">حذف</button>
+                            </form>
+                        </div>
+                    </div>
+                    {% else %}
+                    <span class="badge">لا توجد مواقع مسجلة</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="card-title">إضافة قسم جديد</h2>
+            <form action="/add_category" method="POST" style="display: flex; gap: 10px;">
+                <select class="form-select" name="site_id" required style="width: 30%;">
+                    <option value="">الموقع...</option>
+                    {% for site in sites %}<option value="{{ site.id }}">{{ site.name }}</option>{% endfor %}
+                </select>
+                <input type="text" class="form-control" name="name" placeholder="اسم القسم" required style="width: 50%;">
+                <button type="submit" class="btn btn-primary" style="width: 20%;">حفظ</button>
+            </form>
+
+            <div style="margin-top: 20px;">
+                <p class="form-label" style="color: var(--color-text-muted);">الأقسام الحالية:</p>
+                <div class="tags-list">
+                    {% for cat in categories %}
+                    <div class="tag-item">
+                        <span class="tag-name">{{ cat.name }} <small style="color: var(--color-text-muted); margin-right: 5px;">({{ cat.site_name }})</small></span>
+                        <div class="tag-actions">
+                            <a href="/edit_category/{{ cat.id }}" class="tag-btn edit-btn">تعديل</a>
+                            <form action="/delete_category/{{ cat.id }}" method="POST" onsubmit="return confirm('حذف نهائي؟');" class="tag-form">
+                                <button type="submit" class="tag-btn delete-btn">حذف</button>
+                            </form>
+                        </div>
+                    </div>
+                    {% else %}
+                    <span class="badge">لا توجد أقسام مسجلة</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h2 style="font-size: 18px; margin: 0;">أحدث المقالات</h2>
+        <button type="submit" form="bulkDeleteForm" class="btn btn-danger" onclick="return confirm('هل أنت متأكد من حذف جميع المقالات المحددة نهائياً؟');">حذف المحدد</button>
+    </div>
+    
+    <form id="bulkDeleteForm" action="/bulk_delete_posts" method="POST">
+        <div class="table-wrapper">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px; text-align: center;">
+                            <input type="checkbox" id="selectAllDashboard" style="cursor: pointer;">
+                        </th>
+                        <th>العنوان</th>
+                        <th>القسم</th>
+                        <th>الموقع</th>
+                        <th style="width: 150px; text-align: center;">إجراء</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for post in posts %}
+                    <tr>
+                        <td style="text-align: center;">
+                            <input type="checkbox" class="post-checkbox" name="post_ids" value="{{ post.id }}" style="cursor: pointer;">
+                        </td>
+                        <td>
+                            {{ post.title }}
+                            <span class="badge" style="margin-right: 10px;">{{ 'جاهز' if post.status == 'published' else 'مسودة' }}</span>
+                        </td>
+                        <td>{{ post.cat_name }}</td>
+                        <td style="color: var(--color-text-muted);">{{ post.site_name }}</td>
+                        <td style="text-align: center;">
+                            <a href="/editor/{{ post.id }}" class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px;">تعديل</a>
+                            <a href="#" onclick="event.preventDefault(); if(confirm('حذف نهائي؟')) { document.getElementById('delete-form-{{ post.id }}').submit(); }" class="btn btn-danger" style="padding: 4px 8px; font-size: 12px;">حذف</a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" style="text-align: center; color: var(--color-text-muted);">لا توجد مقالات</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </form>
+
+    {% for post in posts %}
+    <form id="delete-form-{{ post.id }}" action="/delete_post/{{ post.id }}" method="POST" style="display: none;"></form>
+    {% endfor %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById('selectAllDashboard')?.addEventListener('change', function(e) {
+        const checkboxes = document.querySelectorAll('#bulkDeleteForm .post-checkbox');
+        checkboxes.forEach(cb => cb.checked = e.target.checked);
+    });
+</script>
+{% endblock %}

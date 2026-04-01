@@ -1,0 +1,23 @@
+{% extends "layout.html" %}
+{% block title %}الإعدادات{% endblock %}
+
+{% block content %}
+    <h1 style="margin-bottom: 20px;">الإعدادات العامة</h1>
+    
+    <div class="card" style="padding: 24px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 4px;">
+        <form method="POST" action="/settings">
+            <div style="margin-bottom: 20px;">
+                <label for="local_export_path" style="display: block; margin-bottom: 8px; font-weight: bold; color: var(--color-black);">مسار الصور المحلي المطلق (للتصدير)</label>
+                <input type="text" id="local_export_path" name="local_export_path" class="form-control" 
+                       value="{{ settings.get('local_export_path', '') }}" 
+                       placeholder="مثال: /home/user/my-editor/app/static/uploads/" 
+                       style="width: 100%; padding: 10px; border: 1px solid var(--color-border); border-radius: 4px;" dir="ltr">
+                <small style="color: var(--color-text-muted); display: block; margin-top: 8px; line-height: 1.5;">
+                    هذا المسار سيتم استخدامه ديناميكياً عند تصدير كود HTML لتعويض مسار الصور ليطابق المسار الفعلي على جهازك. تأكد من أن المسار ينتهي بعلامة (/).
+                </small>
+            </div>
+            
+            <button type="submit" class="btn btn-black" style="padding: 10px 24px; cursor: pointer;">حفظ التغييرات</button>
+        </form>
+    </div>
+{% endblock %}

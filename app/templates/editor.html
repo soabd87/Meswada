@@ -1,0 +1,301 @@
+{% extends "layout.html" %}
+{% block title %}{% if post %}تعديل: {{ post.title }}{% else %}مقال جديد{% endif %}{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/@editorjs/editorjs@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/@editorjs/header@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/@editorjs/code@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/@editorjs/image@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/@editorjs/list@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/@editorjs/table@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/@editorjs/quote@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/@editorjs/embed@latest"></script>
+{% endblock %}
+
+{% block content %}
+    <h1 style="margin-bottom: 20px;">{% if post %}تعديل المقالة{% else %}إنشاء مقالة{% endif %}</h1>
+    
+    <div class="editor-header-grid">
+        <select id="siteSelector" class="form-select" onchange="loadCategories()">
+            <option value="">اختر الموقع</option>
+            {% for site in sites %}<option value="{{ site.id }}">{{ site.name }}</option>{% endfor %}
+        </select>
+        <select id="catSelector" class="form-select" disabled onchange="checkUnlock()">
+            <option value="">اختر القسم</option>
+        </select>
+        <select id="postStatus" class="form-select">
+            <option value="draft" {% if post and post.status == 'draft' %}selected{% endif %}>مسودة</option>
+            <option value="published" {% if post and post.status == 'published' %}selected{% endif %}>جاهز للنشر</option>
+        </select>
+    </div>
+
+    <div class="editor-title-row">
+        <input type="text" id="postTitle" class="form-control" placeholder="عنوان المقالة..." disabled onkeyup="checkUnlock()">
+        <button class="btn btn-black" onclick="savePost()" id="btnSave" disabled><span id="saveText">حفظ</span></button>
+        <button class="btn btn-primary" onclick="generateOutput()" id="btnExport" disabled>تصدير</button>
+    </div>
+
+    <div id="editor-wrapper">
+        <div id="editor-overlay">
+            <div>يرجى اختيار الموقع والقسم وكتابة العنوان لفتح المحرر</div>
+        </div>
+        <div id="editorjs"></div>
+    </div>
+
+    <div class="status-bar">
+        <div>
+            كلمات: <strong id="wordCount">0</strong> | 
+            حروف: <strong id="charCount">0</strong> | 
+            قراءة: <strong id="readTime">0</strong> دقيقة
+        </div>
+        <div dir="ltr">
+            Ctrl+S (حفظ) | Ctrl+E (تصدير) | Esc (إغلاق)
+        </div>
+    </div>
+    
+    <div id="exportModal" class="modal-overlay" onclick="if(event.target === this) closeModal()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">كود HTML الجاهز</h3>
+                <button type="button" class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <textarea id="output" readonly></textarea>
+            <div id="previewContent"></div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn btn-secondary" onclick="togglePreview()" id="previewBtn">معاينة</button>
+                <button class="btn btn-black" onclick="copyCode()" id="copyBtn">نسخ الكود</button>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentPostId = {% if post %}{{ post.id }}{% else %}null{% endif %};
+    let initialData = {% if post and post.content %}{{ post.content | safe }}{% else %}{ blocks: [] }{% endif %};
+    let autoSaveTimer;
+
+    const editor = new EditorJS({
+        holder: 'editorjs', 
+        data: initialData,
+        i18n: { direction: 'rtl' },
+        tools: { 
+            header: {
+                class: typeof window.Header !== 'undefined' ? window.Header : Header,
+                inlineToolbar: true,
+                config: { placeholder: 'اكتب العنوان هنا...', levels: [2, 3, 4], defaultLevel: 2 }
+            }, 
+            code: { class: typeof window.CodeTool !== 'undefined' ? window.CodeTool : CodeTool }, 
+            image: { 
+                class: typeof window.ImageTool !== 'undefined' ? window.ImageTool : ImageTool, 
+                config: { 
+                    uploader: {
+                        uploadByFile(file) {
+                            let siteSelect = document.getElementById('siteSelector');
+                            let catSelect = document.getElementById('catSelector');
+                            let siteName = siteSelect.options[siteSelect.selectedIndex]?.text || 'Uncategorized';
+                            let catName = catSelect.options[catSelect.selectedIndex]?.text || 'General';
+
+                            let formData = new FormData();
+                            formData.append("image", file); formData.append("site_name", siteName); formData.append("cat_name", catName);
+                            return fetch('/uploadFile', { method: 'POST', body: formData }).then(response => response.json());
+                        }
+                    }
+                } 
+            },
+            list: {
+                class: typeof window.NestedList !== 'undefined' ? window.NestedList : (typeof window.List !== 'undefined' ? window.List : (typeof window.EditorjsList !== 'undefined' ? window.EditorjsList : List)),
+                inlineToolbar: true,
+            },
+            table: { class: typeof window.Table !== 'undefined' ? window.Table : Table, inlineToolbar: true },
+            quote: {
+                class: typeof window.Quote !== 'undefined' ? window.Quote : Quote,
+                inlineToolbar: true,
+                config: { quotePlaceholder: 'اكتب الاقتباس هنا...', captionPlaceholder: 'اسم الكاتب أو المصدر' }
+            },
+            embed: {
+                class: typeof window.Embed !== 'undefined' ? window.Embed : Embed,
+                config: { services: { youtube: true, twitter: true, vimeo: true } }
+            }
+        },
+        onChange: () => { updateStats(); }
+    });
+
+    document.addEventListener("DOMContentLoaded", () => {
+        {% if post %}
+        document.getElementById('siteSelector').value = "{{ post.site_id }}";
+        document.getElementById('postTitle').value = "{{ post.title }}";
+        fetch(`/api/categories/{{ post.site_id }}`).then(res => res.json()).then(data => {
+            const catSelect = document.getElementById('catSelector');
+            catSelect.innerHTML = '<option value="">اختر القسم</option>';
+            data.forEach(cat => {
+                let isSelected = (cat.id == {{ post.category_id }}) ? 'selected' : '';
+                catSelect.innerHTML += `<option value="${cat.id}" ${isSelected}>${cat.name}</option>`;
+            });
+            catSelect.disabled = false; checkUnlock(); 
+        });
+        setTimeout(updateStats, 1000);
+        {% endif %}
+    });
+
+    function loadCategories() {
+        const siteId = document.getElementById('siteSelector').value;
+        const catSelect = document.getElementById('catSelector');
+        if (!siteId) { catSelect.innerHTML = '<option value="">اختر القسم</option>'; catSelect.disabled = true; checkUnlock(); return; }
+        fetch(`/api/categories/${siteId}`).then(res => res.json()).then(data => {
+            catSelect.innerHTML = '<option value="">اختر القسم</option>';
+            data.forEach(cat => { catSelect.innerHTML += `<option value="${cat.id}" data-format='${cat.image_format || "" }'>${cat.name}</option>`; });
+            catSelect.disabled = false; checkUnlock();
+        });
+    }
+
+    function checkUnlock() {
+        const siteId = document.getElementById('siteSelector').value;
+        const catId = document.getElementById('catSelector').value;
+        const titleInput = document.getElementById('postTitle');
+        const overlay = document.getElementById('editor-overlay');
+        const btnSave = document.getElementById('btnSave');
+        const btnExport = document.getElementById('btnExport');
+
+        if (siteId && catId) {
+            titleInput.disabled = false;
+            if(titleInput.value.trim() !== '') {
+                overlay.style.display = 'none'; btnSave.disabled = false; btnExport.disabled = false;
+                startAutoSave();
+            } else { lockEditor(overlay, btnSave, btnExport, titleInput, false); }
+        } else { lockEditor(overlay, btnSave, btnExport, titleInput, true); }
+    }
+
+    function lockEditor(overlay, btnSave, btnExport, titleInput, disableTitle) {
+        if(disableTitle) titleInput.disabled = true;
+        overlay.style.display = 'flex'; btnSave.disabled = true; btnExport.disabled = true; clearInterval(autoSaveTimer);
+    }
+
+    function startAutoSave() {
+        clearInterval(autoSaveTimer);
+        autoSaveTimer = setInterval(() => { if(!document.getElementById('postTitle').disabled && currentPostId) { savePost(true); } }, 30000);
+    }
+
+    function showNotification(message, type) {
+        const alertsArea = document.getElementById('alertsArea');
+        if(!alertsArea) return;
+        const bsType = type === 'success' ? 'alert-success' : 'alert-danger';
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert ${bsType}`;
+        alertDiv.innerHTML = `${message}`;
+        alertsArea.appendChild(alertDiv);
+        setTimeout(() => { if(alertDiv) alertDiv.remove(); }, 3000);
+    }
+
+    function savePost(isAutoSave = false) {
+        const title = document.getElementById('postTitle').value.trim();
+        const cat_id = document.getElementById('catSelector').value;
+        const site_id = document.getElementById('siteSelector').value;
+        const status = document.getElementById('postStatus').value;
+        const btnSave = document.getElementById('btnSave');
+        const saveText = document.getElementById('saveText');
+
+        if (!isAutoSave) { saveText.innerText = 'جاري الحفظ...'; }
+
+        editor.save().then((outputData) => {
+            fetch('/api/save_post', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ post_id: currentPostId, title: title, category_id: cat_id, site_id: site_id, content: outputData, status: status })
+            }).then(res => res.json()).then(data => {
+                if (data.status === 'error' && !isAutoSave) { 
+                    showNotification(data.message, "error"); saveText.innerText = 'حفظ';
+                } else if(data.status === 'success') {
+                    if (!isAutoSave) {
+                        saveText.innerText = 'تم الحفظ';
+                        setTimeout(() => { saveText.innerText = 'حفظ'; }, 2000);
+                    }
+                    if (!currentPostId && data.post_id) { currentPostId = data.post_id; window.history.replaceState({}, '', '/editor/' + currentPostId); }
+                }
+            }).catch(err => {
+                if (!isAutoSave) { saveText.innerText = 'حفظ'; showNotification("حدث خطأ أثناء الاتصال بالخادم", "error"); }
+            });
+        });
+    }
+
+    const LOCAL_ABSOLUTE_PATH = "{{ settings.get('local_export_path', '') }}"; 
+
+    function generateOutput(autoCopy = false) {
+        editor.save().then((outputData) => {
+            let finalHtml = '';
+            
+            outputData.blocks.forEach(block => {
+                if (block.type === 'paragraph') { finalHtml += `<p>${block.data.text}</p>\n\n`; }
+                else if (block.type === 'header') { finalHtml += `<h${block.data.level}>${block.data.text}</h${block.data.level}>\n\n`; }
+                else if (block.type === 'code') { finalHtml += `<pre><code>${block.data.code}</code></pre>\n\n`; }
+                else if (block.type === 'image') {
+                    let relPath = block.data.file.url.split('/static/uploads/')[1];
+                    let fullPath = LOCAL_ABSOLUTE_PATH + relPath;
+                    finalHtml += `<img src="${fullPath}" alt="${block.data.caption || ''}" />\n\n`;
+                }
+                else if (block.type === 'list') {
+                    const listTag = block.data.style === 'ordered' ? 'ol' : 'ul';
+                    const renderItems = (items) => {
+                        return items.map(item => {
+                            if (typeof item === 'string') return `<li>${item}</li>`;
+                            else {
+                                let liContent = item.content || '';
+                                if (item.items && item.items.length > 0) { liContent += `\n<${listTag}>\n${renderItems(item.items)}\n</${listTag}>\n`; }
+                                return `<li>${liContent}</li>`;
+                            }
+                        }).join('');
+                    };
+                    finalHtml += `<${listTag}>\n${renderItems(block.data.items)}\n</${listTag}>\n\n`;
+                }
+                else if (block.type === 'table') {
+                    let tableHtml = '<table class="table">\n';
+                    block.data.content.forEach((row, index) => {
+                        tableHtml += '<tr>\n';
+                        row.forEach(cell => {
+                            const cellTag = (index === 0 && block.data.withHeadings) ? 'th' : 'td';
+                            tableHtml += `<${cellTag}>${cell}</${cellTag}>`;
+                        });
+                        tableHtml += '\n</tr>\n';
+                    });
+                    tableHtml += '</table>\n\n';
+                    finalHtml += tableHtml;
+                }
+                else if (block.type === 'quote') { finalHtml += `<blockquote>\n  <p>${block.data.text}</p>\n  <footer>${block.data.caption}</footer>\n</blockquote>\n\n`; }
+                else if (block.type === 'embed') { finalHtml += `<iframe src="${block.data.embed}" width="${block.data.width}" height="${block.data.height}" frameborder="0" allowfullscreen></iframe>\n\n`; }
+            });
+            
+            document.getElementById('output').value = finalHtml;
+            document.getElementById('previewContent').innerHTML = finalHtml;
+            document.getElementById('exportModal').style.display = 'flex';
+            if(autoCopy) { setTimeout(copyCode, 100); }
+            
+        }).catch((error) => { showNotification("حدث خطأ أثناء معالجة المقال", "error"); });
+    }
+
+    function togglePreview() {
+        const outputText = document.getElementById('output'); const previewContent = document.getElementById('previewContent'); const previewBtn = document.getElementById('previewBtn'); const modalTitle = document.getElementById('modalTitle');
+        if (outputText.style.display === 'none') { outputText.style.display = 'block'; previewContent.style.display = 'none'; previewBtn.innerHTML = 'معاينة'; modalTitle.innerHTML = 'كود HTML الجاهز'; } 
+        else { outputText.style.display = 'none'; previewContent.style.display = 'block'; previewBtn.innerHTML = 'عرض الكود'; modalTitle.innerHTML = 'معاينة المقالة'; }
+    }
+
+    function copyCode() {
+        const outputText = document.getElementById('output'); outputText.select(); document.execCommand('copy');
+        const copyBtn = document.getElementById('copyBtn'); copyBtn.innerText = 'تم النسخ'; showNotification("تم النسخ بنجاح", "success");
+        setTimeout(() => { copyBtn.innerText = 'نسخ الكود'; }, 2000);
+    }
+
+    function closeModal() { document.getElementById('exportModal').style.display = 'none'; document.getElementById('copyBtn').innerText = 'نسخ الكود'; }
+
+    function updateStats() {
+        const editorDiv = document.getElementById('editorjs'); const text = editorDiv.innerText || editorDiv.textContent;
+        let charCount = text.length; let words = text.trim().split(/\s+/).filter(word => word.length > 0); let wordCount = words.length; let readTime = Math.ceil(wordCount / 200) || 1;
+        document.getElementById('wordCount').innerText = wordCount; document.getElementById('charCount').innerText = charCount; document.getElementById('readTime').innerText = readTime;
+    }
+
+    document.getElementById('editorjs').addEventListener('keyup', updateStats);
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') { if(document.getElementById('exportModal').style.display === 'flex') { closeModal(); } }
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); if(!document.getElementById('btnSave').disabled) { savePost(); } }
+        if ((e.ctrlKey || e.metaKey) && e.key === 'e') { e.preventDefault(); if(!document.getElementById('btnExport').disabled) { generateOutput(true); } }
+    });
+</script>
+{% endblock %}

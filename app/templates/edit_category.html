@@ -1,0 +1,34 @@
+{% extends "layout.html" %}
+
+{% block title %}تعديل القسم - My Editor{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 500px; margin: 40px auto;">
+    <h2 class="card-title">تعديل القسم</h2>
+    
+    <form action="/edit_category/{{ category.id }}" method="POST">
+        
+        <div class="form-group">
+            <label class="form-label">الموقع التابع له</label>
+            <select class="form-select" name="site_id" required>
+                {% for site in sites %}
+                    <option value="{{ site.id }}" {% if site.id == category.site_id %}selected{% endif %}>
+                        {{ site.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">اسم القسم</label>
+            <input type="text" class="form-control" name="name" value="{{ category.name }}" required>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 25px;">
+            <button type="submit" class="btn btn-primary" style="flex: 1;">حفظ التعديلات</button>
+            <a href="/" class="btn btn-secondary" style="flex: 1; text-align: center; line-height: 1.5;">إلغاء الرجوع</a>
+        </div>
+        
+    </form>
+</div>
+{% endblock %}
