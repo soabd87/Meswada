@@ -275,3 +275,7 @@ def bulk_delete_posts():
         flash('لم يتم تحديد أي مقالات للحذف', 'error')
     
     return redirect(request.referrer or '/')
+
+@main_blueprint.route('/tashkeel')
+def tashkeel():
+    return render_template('tashkeel.html')

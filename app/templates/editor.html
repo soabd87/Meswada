@@ -220,6 +220,9 @@
     const LOCAL_ABSOLUTE_PATH = "{{ settings.get('local_export_path', '') }}"; 
 
     function generateOutput(autoCopy = false) {
+        // رسالة تأكيد للكونسول للتأكد من أن الكود الجديد يعمل
+        console.log("تم تشغيل كود التصدير الجديد..."); 
+        
         editor.save().then((outputData) => {
             let finalHtml = '';
             
@@ -234,17 +237,32 @@
                 }
                 else if (block.type === 'list') {
                     const listTag = block.data.style === 'ordered' ? 'ol' : 'ul';
+                    
+                    // استخراج رقم البداية للقائمة الرئيسية
+                    let startAttr = '';
+                    if (block.data.style === 'ordered' && block.data.meta && block.data.meta.start) {
+                        startAttr = ` start="${block.data.meta.start}"`;
+                    }
+
                     const renderItems = (items) => {
                         return items.map(item => {
                             if (typeof item === 'string') return `<li>${item}</li>`;
                             else {
                                 let liContent = item.content || '';
-                                if (item.items && item.items.length > 0) { liContent += `\n<${listTag}>\n${renderItems(item.items)}\n</${listTag}>\n`; }
+                                if (item.items && item.items.length > 0) { 
+                                    let nestedStartAttr = '';
+                                    if (listTag === 'ol' && item.meta && item.meta.start) {
+                                        nestedStartAttr = ` start="${item.meta.start}"`;
+                                    }
+                                    liContent += `\n<${listTag}${nestedStartAttr}>\n${renderItems(item.items)}\n</${listTag}>\n`; 
+                                }
                                 return `<li>${liContent}</li>`;
                             }
                         }).join('');
                     };
-                    finalHtml += `<${listTag}>\n${renderItems(block.data.items)}\n</${listTag}>\n\n`;
+                    
+                    // إضافة السمة للقائمة
+                    finalHtml += `<${listTag}${startAttr}>\n${renderItems(block.data.items)}\n</${listTag}>\n\n`;
                 }
                 else if (block.type === 'table') {
                     let tableHtml = '<table class="table">\n';

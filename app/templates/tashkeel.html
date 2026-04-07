@@ -1,0 +1,82 @@
+{% extends "layout.html" %}
+{% block title %}لوحة التشكيل - مسوده{% endblock %}
+
+
+{% block content %}
+<div class="card">
+    <div class="tashkeel-header">
+        <h2>لوحة التشكيل</h2>
+        <p class="text-muted">اكتب النص، وعند الحاجة للتشكيل اضغط على الحركة لتضاف مباشرة على الحرف الأخير.</p>
+    </div>
+
+    <div class="tashkeel-grid">
+        <button class="tashkeel-btn" data-char="َ">َ <span>فتحة</span></button>
+        <button class="tashkeel-btn" data-char="ً">ً <span>تنوين فتح</span></button>
+        <button class="tashkeel-btn" data-char="ُ">ُ <span>ضمة</span></button>
+        <button class="tashkeel-btn" data-char="ٌ">ٌ <span>تنوين ضم</span></button>
+        <button class="tashkeel-btn" data-char="ِ">ِ <span>كسرة</span></button>
+        <button class="tashkeel-btn" data-char="ٍ">ٍ <span>تنوين كسر</span></button>
+        <button class="tashkeel-btn" data-char="ْ">ْ <span>سكون</span></button>
+        <button class="tashkeel-btn" data-char="ّ">ّ <span>شدة</span></button>
+    </div>
+
+    <textarea id="tashkeelInput" class="editor-area" placeholder="اكتب النص هنا..."></textarea>
+
+    <div class="actions-bar">
+        <button id="copyBtn" class="btn btn-primary">نسخ النص</button>
+        <button id="clearBtn" class="btn btn-secondary">مسح الكل</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const textarea = document.getElementById('tashkeelInput');
+    const buttons = document.querySelectorAll('.tashkeel-btn');
+    const copyBtn = document.getElementById('copyBtn');
+    const clearBtn = document.getElementById('clearBtn');
+
+    // إدراج التشكيل في مكان المؤشر
+    buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const char = btn.getAttribute('data-char');
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const text = textarea.value;
+
+            // إدراج الحركة
+            textarea.value = text.substring(0, start) + char + text.substring(end);
+            
+            // إعادة المؤشر بعد الحركة المضافة
+            textarea.selectionStart = textarea.selectionEnd = start + 1;
+            textarea.focus();
+        });
+    });
+
+    // نسخ النص
+    copyBtn.addEventListener('click', () => {
+        if (!textarea.value.trim()) return;
+        
+        textarea.select();
+        document.execCommand('copy');
+        
+        // تغيير النص كدليل مرئي للنجاح (بدون إيموجي)
+        const originalText = copyBtn.innerText;
+        copyBtn.innerText = 'تم النسخ بنجاح';
+        setTimeout(() => {
+            copyBtn.innerText = originalText;
+        }, 2000);
+    });
+
+    // مسح النص
+    clearBtn.addEventListener('click', () => {
+        if(confirm('هل أنت متأكد من مسح النص بالكامل؟')) {
+            textarea.value = '';
+            textarea.focus();
+        }
+    });
+
+    // التركيز التلقائي على الصندوق عند فتح الصفحة
+    window.onload = () => textarea.focus();
+</script>
+{% endblock %}
