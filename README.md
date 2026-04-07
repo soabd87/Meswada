@@ -17,19 +17,19 @@
 
 ## متطلبات التشغيل
 
-* نظام تشغيل Linux (التعليمات أدناه مخصصة لتوزيعة Debian أو Ubuntu)
+* نظام تشغيل Linux (التعليمات أدناه مخصصة لتوزيعة Debian)
 * Python 3
 * بيئة بايثون الوهمية (venv)
 
 ## طريقة التشغيل على لينكس ديبيان (Debian Linux)
 
-**1. تحديث النظام وتثبيت المتطلبات الأساسية**
-تأكد من تثبيت لغة Python، وأداة تثبيت الحزم `pip`، وأداة إنشاء البيئات الوهمية `venv`:
+
 ```bash
-sudo apt update
+sudo apt update && sudo apt upgrade
 sudo apt install python3 python3-pip python3-venv
 
-cd /path/to/Meswada
+git clone https://github.com/soabd87/Meswada.git
+cd Meswada
 
 python3 -m venv venv
 
